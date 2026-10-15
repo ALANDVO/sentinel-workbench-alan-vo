@@ -1,0 +1,21 @@
+{
+  "schema_version": 1,
+  "name": "sentinel-workbench-alan-vo",
+  "owner": "ALANDVO",
+  "email": "alanvo@gmail.com",
+  "domain": "AI/ML developer tools",
+  "summary": "Work in progress: sentinel-workbench-alan-vo",
+  "workflows": [
+    "Ingest multi-session agent trajectories and segment them using semantic topic-cohesion and failure-episode slicing versus fixed-token windows",
+    "Execute situation-based hybrid retrieval (BM25 + dense n-gram cosine similarity + failure-turn retention weighting) with token savings estimation over raw grep scans",
+    "Run preregistered retrieval evaluation benchmarks comparing topic-sliced vs fixed-window recall@1, MRR, Wilson confidence intervals, and candidate-pool mask integrity checks"
+  ],
+  "auth": "oidc-keycloak-saml-broker",
+  "llm_providers": [
+    "openai-compatible",
+    "anthropic",
+    "gemini",
+    "ollama"
+  ],
+  "status": "work-in-progress"
+}
