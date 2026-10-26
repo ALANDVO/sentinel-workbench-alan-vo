@@ -98,8 +98,13 @@ def build_semantic_topic_slices(
         # If the previous turn was a failure turn, keep the immediate follow-up turn in the same
         # slice if it shares lexical context or resolves the failure episode.
         prev_was_failure = prev_turn.is_failure
-        shares_error_recovery = prev_was_failure and (overlap >= 0.10 or not tool_changed)
-
+        # Enhanced failure-recovery detection: check error_code matching and recovery keywords
+        prev_error_code = prev_turn.error_code or ""
+        recovery_keywords = {"resolved", "fixed", "recovered", "mitigated", "addressed", "corrected", "patched", "aligned", "updated", "restarted", "retry", "rollback"}
+        recovery_text = f"{turn.command_or_tool} {turn.content}".lower()
+        has_recovery_keyword = any(kw in recovery_text for kw in recovery_keywords)
+        error_code_match = prev_error_code and prev_error_code.lower() in recovery_text
+        shares_error_recovery = prev_was_failure and (overlap >= 0.10 or not tool_changed or has_recovery_keyword or error_code_match)
         should_split = False
         next_reason = "topic_continuation"
 
@@ -113,6 +118,16 @@ def build_semantic_topic_slices(
             elif accumulated_tokens >= int(target_window_tokens * 1.45):
                 should_split = True
                 next_reason = f"episode_token_cap({accumulated_tokens})"
+        else:
+            # Preserving failure-recovery pair
+            if has_recovery_keyword:
+                next_reason = "failure_recovery(recovery_keyword)"
+            elif error_code_match:
+                next_reason = "failure_recovery(error_code_match)"
+            elif not tool_changed:
+                next_reason = "failure_recovery(same_tool)"
+            else:
+                next_reason = "failure_recovery(lexical_overlap)"
 
         if should_split:
             slices.append(_create_slice_record(session_id, "semantic_topic", len(slices), current_group, current_reason))

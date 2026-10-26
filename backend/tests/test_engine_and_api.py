@@ -87,6 +87,86 @@ def test_semantic_slicer_preserves_failure_recovery_pair() -> None:
     assert len(fix_slices) >= 2
 
 
+
+def test_semantic_slicer_enhanced_failure_recovery_detection() -> None:
+    """Test enhanced failure-recovery detection with error_code matching and recovery keywords."""
+    turns = [
+        SessionTurnInput(
+            turn_index=0,
+            role="agent",
+            timestamp="2026-10-10T10:00:00Z",
+            command_or_tool="deploy service",
+            content="Starting deployment of auth-service to staging.",
+            is_failure=False,
+        ),
+        SessionTurnInput(
+            turn_index=1,
+            role="tool",
+            timestamp="2026-10-10T10:01:00Z",
+            command_or_tool="kubectl apply -f deployment.yaml",
+            content="Deploy failed with AUTH_401_AUDIENCE_MISMATCH on token validation.",
+            is_failure=True,
+            error_code="AUTH_401_AUDIENCE_MISMATCH",
+        ),
+        SessionTurnInput(
+            turn_index=2,
+            role="agent",
+            timestamp="2026-10-10T10:02:00Z",
+            command_or_tool="kubectl set env deployment/auth-service OIDC_AUDIENCE=api://staging",
+            content="Resolved AUTH_401_AUDIENCE_MISMATCH by updating Keycloak audience mapper.",
+            is_failure=False,
+        ),
+        SessionTurnInput(
+            turn_index=3,
+            role="tool",
+            timestamp="2026-10-10T10:03:00Z",
+            command_or_tool="kubectl rollout status deployment/auth-service",
+            content="Rollout successful after fixing the audience mismatch.",
+            is_failure=False,
+        ),
+    ]
+    sem_slices = build_semantic_topic_slices("sess-unit", turns, target_window_tokens=40, topic_drift_threshold=0.22)
+    failure_slice = next(s for s in sem_slices if s.has_failure_turn)
+    # Should preserve failure turn (1) and both recovery turns (2, 3) in same slice
+    assert failure_slice.start_turn == 1
+    assert failure_slice.end_turn == 3
+    assert "failure_recovery" in failure_slice.boundary_reason
+    assert "error_code_match" in failure_slice.boundary_reason
+
+    # Test with recovery keyword but no error_code
+    turns2 = [
+        SessionTurnInput(
+            turn_index=0,
+            role="agent",
+            timestamp="2026-10-10T10:00:00Z",
+            command_or_tool="run test",
+            content="Running integration test suite.",
+            is_failure=False,
+        ),
+        SessionTurnInput(
+            turn_index=1,
+            role="tool",
+            timestamp="2026-10-10T10:01:00Z",
+            command_or_tool="pytest test_module.py",
+            content="Test failed with timeout error on database connection.",
+            is_failure=True,
+        ),
+        SessionTurnInput(
+            turn_index=2,
+            role="agent",
+            timestamp="2026-10-10T10:02:00Z",
+            command_or_tool="pytest test_module.py",
+            content="Fixed timeout by increasing connection pool size and retrying.",
+            is_failure=False,
+        ),
+    ]
+    sem_slices2 = build_semantic_topic_slices("sess-unit-2", turns2, target_window_tokens=40, topic_drift_threshold=0.22)
+    failure_slice2 = next(s for s in sem_slices2 if s.has_failure_turn)
+    assert failure_slice2.start_turn == 1
+    assert failure_slice2.end_turn == 2
+    assert "failure_recovery" in failure_slice2.boundary_reason
+    assert "recovery_keyword" in failure_slice2.boundary_reason
+
 def test_create_get_and_delete_session_workflow(client: TestClient) -> None:
     payload = {
         "session_id": "sess-custom-debug-99",
