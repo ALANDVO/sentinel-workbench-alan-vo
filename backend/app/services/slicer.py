@@ -76,10 +76,12 @@ def build_semantic_topic_slices(
     ordered = sorted(turns, key=lambda x: x.turn_index)
     if not ordered:
         return []
-
     slices: List[SliceRecord] = []
     current_group: List[SessionTurnInput] = [ordered[0]]
     current_reason = "session_start"
+    # Track whether we're in a failure-recovery episode to keep verification turns together
+    in_failure_recovery_episode = False
+    failure_error_code: Optional[str] = None
 
     for idx in range(1, len(ordered)):
         turn = ordered[idx]
@@ -95,40 +97,85 @@ def build_semantic_topic_slices(
         curr_tool = _tool_prefix(turn.command_or_tool)
         tool_changed = prev_tool != curr_tool and prev_tool != "none" and curr_tool != "none"
 
-        # If the previous turn was a failure turn, keep the immediate follow-up turn in the same
-        # slice if it shares lexical context or resolves the failure episode.
+        # Check if current turn is a failure and we should start a new slice at the failure boundary
+        # This keeps failure-recovery episodes together but separates pre-failure context
+        turn_is_failure = turn.is_failure
         prev_was_failure = prev_turn.is_failure
-        # Enhanced failure-recovery detection: check error_code matching and recovery keywords
-        prev_error_code = prev_turn.error_code or ""
-        recovery_keywords = {"resolved", "fixed", "recovered", "mitigated", "addressed", "corrected", "patched", "aligned", "updated", "restarted", "retry", "rollback"}
-        recovery_text = f"{turn.command_or_tool} {turn.content}".lower()
-        has_recovery_keyword = any(kw in recovery_text for kw in recovery_keywords)
-        error_code_match = prev_error_code and prev_error_code.lower() in recovery_text
-        shares_error_recovery = prev_was_failure and (overlap >= 0.10 or not tool_changed or has_recovery_keyword or error_code_match)
-        should_split = False
-        next_reason = "topic_continuation"
-
-        if not shares_error_recovery:
-            if overlap < topic_drift_threshold and len(current_group) >= 2:
-                should_split = True
-                next_reason = f"lexical_topic_shift(jaccard={overlap:.2f})"
-            elif tool_changed and overlap < (topic_drift_threshold + 0.12) and accumulated_tokens >= int(target_window_tokens * 0.65):
-                should_split = True
-                next_reason = f"tool_domain_transition({prev_tool}->{curr_tool})"
-            elif accumulated_tokens >= int(target_window_tokens * 1.45):
-                should_split = True
-                next_reason = f"episode_token_cap({accumulated_tokens})"
+        if turn_is_failure and not prev_was_failure:
+            # Current turn is a failure, previous was not - start new slice at failure
+            should_split = True
+            next_reason = "failure_episode_start"
+            in_failure_recovery_episode = True
+            failure_error_code = turn.error_code or ""
         else:
-            # Preserving failure-recovery pair
-            if has_recovery_keyword:
-                next_reason = "failure_recovery(recovery_keyword)"
-            elif error_code_match:
-                next_reason = "failure_recovery(error_code_match)"
-            elif not tool_changed:
-                next_reason = "failure_recovery(same_tool)"
-            else:
-                next_reason = "failure_recovery(lexical_overlap)"
+            # If the previous turn was a failure turn, keep the immediate follow-up turn in the same
+            # slice if it shares lexical context or resolves the failure episode.
+            # Enhanced failure-recovery detection: check error_code matching and recovery keywords
+            prev_error_code = prev_turn.error_code or ""
+            recovery_keywords = {"resolved", "fixed", "recovered", "mitigated", "addressed", "corrected", "patched", "aligned", "updated", "restarted", "retry", "rollback"}
+            recovery_text = f"{turn.command_or_tool} {turn.content}".lower()
+            has_recovery_keyword = any(kw in recovery_text for kw in recovery_keywords)
+            error_code_match = prev_error_code and prev_error_code.lower() in recovery_text
+            shares_error_recovery = prev_was_failure and (overlap >= 0.10 or not tool_changed or has_recovery_keyword or error_code_match)
+            # Also check if we're continuing a failure-recovery episode
+            # If the current group has a failure and we're in an episode, be more lenient
+            episode_continues = False
+            if in_failure_recovery_episode and failure_error_code:
+                # Check for exact error code match or key terms from error code
+                error_code_lower = failure_error_code.lower()
+                turn_text_lower = f"{turn.command_or_tool} {turn.content}".lower()
+                if error_code_lower in turn_text_lower:
+                    episode_continues = True
+                else:
+                    # Check for key terms from error code (split by underscores)
+                    # Require at least 2 meaningful terms to match, or the last 2 terms (most specific)
+                    error_terms = [t for t in error_code_lower.split("_") if len(t) > 2]
+                    if len(error_terms) >= 2:
+                        matches = sum(1 for term in error_terms if term in turn_text_lower)
+                        # Check last two terms (often most specific like "audience_mismatch")
+                        last_two_match = all(term in turn_text_lower for term in error_terms[-2:])
+                        if matches >= 2 or last_two_match:
+                            episode_continues = True
+            should_split = False
+            next_reason = "topic_continuation"
 
+            if not shares_error_recovery and not episode_continues:
+                if overlap < topic_drift_threshold and len(current_group) >= 2:
+                    should_split = True
+                    next_reason = f"lexical_topic_shift(jaccard={overlap:.2f})"
+                elif tool_changed and overlap < (topic_drift_threshold + 0.12) and accumulated_tokens >= int(target_window_tokens * 0.65):
+                    should_split = True
+                    next_reason = f"tool_domain_transition({prev_tool}->{curr_tool})"
+                elif accumulated_tokens >= int(target_window_tokens * 1.45):
+                    should_split = True
+                    next_reason = f"episode_token_cap({accumulated_tokens})"
+            else:
+                # Preserving failure-recovery pair or continuing episode
+                reasons = []
+                if has_recovery_keyword:
+                    reasons.append("recovery_keyword")
+                if error_code_match:
+                    reasons.append("error_code_match")
+                if episode_continues:
+                    reasons.append("episode_continuation")
+                if not tool_changed:
+                    reasons.append("same_tool")
+                if not reasons:
+                    reasons.append("lexical_overlap")
+                next_reason = "failure_recovery(" + "+".join(reasons) + ")"
+            
+            # Update episode tracking
+            if has_recovery_keyword or error_code_match or episode_continues:
+                in_failure_recovery_episode = True
+                if failure_error_code == "" and (has_recovery_keyword or error_code_match):
+                    failure_error_code = prev_error_code
+                # Update current_reason to reflect the failure-recovery nature of this slice
+                # But preserve more specific reasons like error_code_match or recovery_keyword
+                if "error_code_match" not in current_reason and "recovery_keyword" not in current_reason:
+                    current_reason = next_reason
+            elif in_failure_recovery_episode and should_split:
+                in_failure_recovery_episode = False
+                failure_error_code = None
         if should_split:
             slices.append(_create_slice_record(session_id, "semantic_topic", len(slices), current_group, current_reason))
             current_group = [turn]
