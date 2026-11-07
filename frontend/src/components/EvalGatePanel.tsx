@@ -95,13 +95,24 @@ export const EvalGatePanel: React.FC<EvalGatePanelProps> = ({
             <div className="metric-box">
               <span className="metric-label">Candidate Mask Integrity</span>
               <strong>
-                {evalReport.candidate_mask_integrity_ok ? "PASS (No Self-Mask)" : "FAIL"}
+                <span className={evalReport.candidate_mask_integrity_ok ? "pass-pill" : "failure-pill"}>
+                  {evalReport.candidate_mask_integrity_ok ? "PASS (No Self-Mask)" : "FAIL"}
+                </span>
               </strong>
               <span className="muted">
                 Simulated fill_diagonal recall: {evalReport.diagonal_mask_bug_simulated_recall}
               </span>
             </div>
-          </div>
+            <div className="metric-box">
+              <span className="metric-label">Failure Turn Retention Rate</span>
+              <strong>{(evalReport.failure_turn_retention_rate * 100).toFixed(1)}%</strong>
+              <span className="muted">of failure slices preserve remediation context</span>
+            </div>
+            <div className="metric-box">
+              <span className="metric-label">Mean Token Reduction vs Grep</span>
+              <strong>{evalReport.mean_token_reduction_vs_grep.toFixed(2)}x</strong>
+              <span className="muted">fewer tokens vs naive line scan</span>
+            </div>
 
           <table className="eval-table">
             <thead>
