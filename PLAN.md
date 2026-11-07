@@ -56,3 +56,6 @@ Acceptance:
 - OIDC authorization-code + PKCE authentication flow with Keycloak realm configuration and role-based access control
 - Opt-in server-side LLM advisory adapter supporting OpenAI-compatible, Anthropic, and Gemini endpoints with strict grounding on retrieved slices
 
+---
+
+Alan Vo · [alanvo.net](https://alanvo.net)

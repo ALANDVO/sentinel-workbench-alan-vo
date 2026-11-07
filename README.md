@@ -168,3 +168,7 @@ Both development ports bind strictly to `127.0.0.1` (`127.0.0.1:8000` for backen
 ## Author & License
 
 Created by **Alan Vo** (<alanvo@gmail.com>, GitHub: [ALANDVO](https://github.com/ALANDVO)). Released under the [MIT License](LICENSE).
+
+---
+
+Alan Vo · [alanvo.net](https://alanvo.net)
