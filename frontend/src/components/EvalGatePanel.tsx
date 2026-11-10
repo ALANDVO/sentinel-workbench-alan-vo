@@ -1,3 +1,4 @@
+
 import React, { useState } from "react";
 import { EvalReportResponse } from "../api/client";
 
@@ -39,7 +40,7 @@ export const EvalGatePanel: React.FC<EvalGatePanelProps> = ({
     <div className="card">
       <div className="slice-header">
         <div>
-          <h2>Preregistered Retrieval Evaluation & Mask Sanity Check</h2>
+          <h2>Preregistered Retrieval Evaluation &amp; Mask Sanity Check</h2>
           <p className="muted">
             Recomputes paired Recall@1, Mean Reciprocal Rank (MRR), Wilson 95% confidence
             intervals, and verifies that candidate-pool self-exclusion (<code>fill_diagonal</code>{" "}
@@ -68,7 +69,7 @@ export const EvalGatePanel: React.FC<EvalGatePanelProps> = ({
       </div>
 
       {evalReport && (
-        <>
+        <div>
           <div className="metrics-banner">
             <div className="metric-box">
               <span className="metric-label">Semantic Slicing Recall@1</span>
@@ -114,51 +115,52 @@ export const EvalGatePanel: React.FC<EvalGatePanelProps> = ({
               <span className="muted">fewer tokens vs naive line scan</span>
             </div>
 
-          <table className="eval-table">
-            <thead>
-              <tr>
-                <th>Case ID</th>
-                <th>Situation Query</th>
-                <th>Expected Session (Turn)</th>
-                <th>Semantic Top-1</th>
-                <th>Semantic Hit@1</th>
-                <th>Fixed Top-1</th>
-                <th>Fixed Hit@1</th>
-              </tr>
-            </thead>
-            <tbody>
-              {evalReport.cases.map((c) => (
-                <tr key={c.case_id}>
-                  <td>
-                    <code>{c.case_id}</code>
-                  </td>
-                  <td>{c.situation_query}</td>
-                  <td>
-                    <code>
-                      {c.expected_session_id} (#{c.expected_turn_index})
-                    </code>
-                  </td>
-                  <td>
-                    <code>{c.semantic_top1_slice_id || "none"}</code>
-                  </td>
-                  <td>
-                    <span className={c.semantic_hit_at_1 ? "pass-pill" : "failure-pill"}>
-                      {c.semantic_hit_at_1 ? "PASS" : "MISS"}
-                    </span>
-                  </td>
-                  <td>
-                    <code>{c.fixed_top1_slice_id || "none"}</code>
-                  </td>
-                  <td>
-                    <span className={c.fixed_hit_at_1 ? "pass-pill" : "failure-pill"}>
-                      {c.fixed_hit_at_1 ? "PASS" : "MISS"}
-                    </span>
-                  </td>
+            <table className="eval-table">
+              <thead>
+                <tr>
+                  <th>Case ID</th>
+                  <th>Situation Query</th>
+                  <th>Expected Session (Turn)</th>
+                  <th>Semantic Top-1</th>
+                  <th>Semantic Hit@1</th>
+                  <th>Fixed Top-1</th>
+                  <th>Fixed Hit@1</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </>
+              </thead>
+              <tbody>
+                {evalReport.cases.map((c) => (
+                  <tr key={c.case_id}>
+                    <td>
+                      <code>{c.case_id}</code>
+                    </td>
+                    <td>{c.situation_query}</td>
+                    <td>
+                      <code>
+                        {c.expected_session_id} (#{c.expected_turn_index})
+                      </code>
+                    </td>
+                    <td>
+                      <code>{c.semantic_top1_slice_id || "none"}</code>
+                    </td>
+                    <td>
+                      <span className={c.semantic_hit_at_1 ? "pass-pill" : "failure-pill"}>
+                        {c.semantic_hit_at_1 ? "PASS" : "MISS"}
+                      </span>
+                    </td>
+                    <td>
+                      <code>{c.fixed_top1_slice_id || "none"}</code>
+                    </td>
+                    <td>
+                      <span className={c.fixed_hit_at_1 ? "pass-pill" : "failure-pill"}>
+                        {c.fixed_hit_at_1 ? "PASS" : "MISS"}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
       )}
     </div>
   );
