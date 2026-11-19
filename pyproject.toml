@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "sentinel-workbench-alan-vo"
-version = "1.0.0"
+version = "1.5.0"
 description = "Semantic topic slicing, low-token hybrid retrieval, and preregistered evaluation workbench for AI agent session memory."
 readme = "README.md"
 license = { text = "MIT" }

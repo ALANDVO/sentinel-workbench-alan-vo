@@ -24,12 +24,16 @@ Tests: `backend/tests/test_engine_and_api.py`, `frontend/src/App.test.tsx`
 
 ### preregistered-retrieval-eval-gates — Preregistered Retrieval Evaluation & Mask-Integrity Gate Verification
 
-Status: planned
+Status: in_progress
 
 Acceptance:
 - Freeze preregistered evaluation criteria (Recall@1, MRR, failure-turn recall, majority-class baseline, Wilson 95% confidence intervals, paired McNemar comparison)
 - Self-mask / fill_diagonal candidate exclusion detector that catches candidate-pool self-exclusion bugs
 - Separate self-report and independent recompute artifacts with explicit measured/inferred/unverifiable claim labels
+
+Implementation: `backend/app/core/evaluation_criteria.py`, `backend/app/models/schemas.py`
+
+Tests: `backend/tests/test_engine_and_api.py`
 
 ### ingest-admission-governor-simulator — Per-Shard Memory Admission Governor & Decorrelated Backoff Simulator
 

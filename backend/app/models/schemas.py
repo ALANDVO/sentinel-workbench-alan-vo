@@ -132,6 +132,9 @@ class EvalReportResponse(BaseModel):
     mean_token_reduction_vs_grep: float
     candidate_mask_integrity_ok: bool
     diagonal_mask_bug_simulated_recall: float
+    failure_turn_recall_at_1: float
+    majority_class_baseline_recall: float
+    paired_mcnemar_pvalue: float
     cases: List[EvalCaseResult]
 
 
