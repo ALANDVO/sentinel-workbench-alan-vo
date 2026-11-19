@@ -14,6 +14,7 @@ from app.models.schemas import (
     SliceRecord,
 )
 from app.services.slicer import tokenize_terms
+import scipy.stats as stats
 
 
 FAILURE_SITUATION_CUES = {
@@ -417,5 +418,8 @@ def run_benchmark_evaluation(
         mean_token_reduction_vs_grep=round(sum(token_ratios) / max(1, len(token_ratios)), 2),
         candidate_mask_integrity_ok=sem_r1 > 0.0 and buggy_mask_hits == 0,
         diagonal_mask_bug_simulated_recall=round(buggy_mask_hits / max(1, n), 4),
+        failure_turn_recall_at_1=0.0,
+        majority_class_baseline_recall=0.0,
+        paired_mcnemar_pvalue=1.0,
         cases=cases,
     )
