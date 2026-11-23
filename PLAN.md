@@ -4,7 +4,7 @@ Each round completes one feature or repair. Future items are planned, not implem
 
 ## Current round
 
-session-memory-topic-slicing-search
+preregistered-retrieval-eval-gates
 
 ## Roadmap
 
@@ -24,7 +24,7 @@ Tests: `backend/tests/test_engine_and_api.py`, `frontend/src/App.test.tsx`
 
 ### preregistered-retrieval-eval-gates — Preregistered Retrieval Evaluation & Mask-Integrity Gate Verification
 
-Status: in_progress
+Status: done
 
 Acceptance:
 - Freeze preregistered evaluation criteria (Recall@1, MRR, failure-turn recall, majority-class baseline, Wilson 95% confidence intervals, paired McNemar comparison)

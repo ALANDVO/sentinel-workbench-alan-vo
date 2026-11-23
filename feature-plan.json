@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "current_feature": "session-memory-topic-slicing-search",
+  "current_feature": "preregistered-retrieval-eval-gates",
   "features": [
     {
       "id": "session-memory-topic-slicing-search",
@@ -34,7 +34,7 @@
     {
       "id": "preregistered-retrieval-eval-gates",
       "title": "Preregistered Retrieval Evaluation & Mask-Integrity Gate Verification",
-      "status": "in_progress",
+      "status": "done",
       "acceptance": [
         "Freeze preregistered evaluation criteria (Recall@1, MRR, failure-turn recall, majority-class baseline, Wilson 95% confidence intervals, paired McNemar comparison)",
         "Self-mask / fill_diagonal candidate exclusion detector that catches candidate-pool self-exclusion bugs",
