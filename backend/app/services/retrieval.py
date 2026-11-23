@@ -401,6 +401,100 @@ def run_benchmark_evaluation(
     failure_slices = [s for s in semantic_slices if s.has_failure_turn]
     retained_with_context = [s for s in failure_slices if s.turn_count >= 2]
     retention_rate = round(len(retained_with_context) / max(1, len(failure_slices)), 4)
+    # === New preregistered evaluation metrics ===
+    
+    # Compute failure-turn recall at 1: proportion of queries where top-1 semantic hit
+    # has a failure turn
+    failure_turn_recall_at_1 = 0.0
+    
+    # Compute majority-class baseline recall:
+    # the most common (expected_session_id, expected_turn_index) pair across queries
+    from collections import Counter
+    expected_pairs = []
+    for item in BENCHMARK_QUERIES:
+        expected_pairs.append((str(item["expected_session_id"]), int(item["expected_turn_index"])))
+    if expected_pairs:
+        majority_pair = Counter(expected_pairs).most_common(1)[0][0]
+        # Count queries where the majority pair matches AND semantic top-1 hits it
+        majority_count = 0
+        for item in BENCHMARK_QUERIES:
+            if (str(item["expected_session_id"]), int(item["expected_turn_index"])) == majority_pair:
+                # Check if semantic top-1 hit matches this expected pair
+                sem_ranked = rank_slices(str(item["situation_query"]), semantic_slices, session_titles, scoring_mode=scoring_mode, top_k=10)
+                if sem_ranked:
+                    top1 = sem_ranked[0]
+                    top1_slice = next((s for s in semantic_slices if s.slice_id == top1.slice_id), None)
+                    if top1_slice and _slice_satisfies_case(top1_slice, str(item["expected_session_id"]), int(item["expected_turn_index"]), bool(item["requires_failure_context"])):
+                        majority_count += 1
+        majority_class_baseline_recall = round(majority_count / max(1, len(expected_pairs)), 4)
+    else:
+        majority_class_baseline_recall = 0.0
+    
+    # Compute paired McNemar p-value comparing semantic vs fixed-window top-1 correctness
+    # Build contingency table
+    n_semantic_correct = 0  # semantic top-1 correct
+    n_fixed_correct = 0     # fixed top-1 correct
+    n_both_correct = 0      # both correct
+    n_neither_correct = 0   # both wrong
+    n_semantic_only = 0     # semantic correct, fixed wrong
+    n_fixed_only = 0        # semantic wrong, fixed correct
+    
+    for item in BENCHMARK_QUERIES:
+        query = str(item["situation_query"])
+        exp_session = str(item["expected_session_id"])
+        exp_turn = int(item["expected_turn_index"])
+        req_fail = bool(item["requires_failure_context"])
+        
+        sem_ranked = rank_slices(query, semantic_slices, session_titles, scoring_mode=scoring_mode, top_k=10)
+        fix_ranked = rank_slices(query, fixed_slices, session_titles, scoring_mode=scoring_mode, top_k=10)
+        
+        sem_top1_ok = False
+        if sem_ranked:
+            top1_slice = next((s for s in semantic_slices if s.slice_id == sem_ranked[0].slice_id), None)
+            if top1_slice and _slice_satisfies_case(top1_slice, exp_session, exp_turn, req_fail):
+                sem_top1_ok = True
+        
+        fix_top1_ok = False
+        if fix_ranked:
+            top1_slice = next((s for s in fixed_slices if s.slice_id == fix_ranked[0].slice_id), None)
+            if top1_slice and _slice_satisfies_case(top1_slice, exp_session, exp_turn, req_fail):
+                fix_top1_ok = True
+        
+        if sem_top1_ok and fix_top1_ok:
+            n_both_correct += 1
+        elif not sem_top1_ok and not fix_top1_ok:
+            n_neither_correct += 1
+        elif sem_top1_ok and not fix_top1_ok:
+            n_semantic_only += 1
+        elif not sem_top1_ok and fix_top1_ok:
+            n_fixed_only += 1
+    
+    # McNemar's test p-value (two-sided)
+    n_discordant = n_semantic_only + n_fixed_only
+    if n_discordant > 0:
+        # P(X <= n_fixed_only) where X ~ Binomial(n_discordant, p=0.5)
+        from math import comb
+        p_lt = sum(comb(n_discordant, i) * (0.5 ** n_discordant) for i in range(n_fixed_only + 1))
+        p_gt = sum(comb(n_discordant, i) * (0.5 ** n_discordant) for i in range(n_fixed_only, n_discordant + 1))
+        paired_mcnemar_pvalue = 2 * min(p_lt, p_gt)
+        paired_mcnemar_pvalue = min(paired_mcnemar_pvalue, 1.0)
+    else:
+        paired_mcnemar_pvalue = 1.0
+    
+    # Failure-turn recall at 1
+    failure_turn_hits_at_1 = 0
+    for item in BENCHMARK_QUERIES:
+        query = str(item["situation_query"])
+        exp_turn = int(item["expected_turn_index"])
+        req_fail = bool(item["requires_failure_context"])
+        sem_ranked = rank_slices(query, semantic_slices, session_titles, scoring_mode=scoring_mode, top_k=10)
+        if sem_ranked:
+            top1_slice = next((s for s in semantic_slices if s.slice_id == sem_ranked[0].slice_id), None)
+            if top1_slice and _slice_satisfies_case(top1_slice, str(item.get("expected_session_id", "")), exp_turn, req_fail):
+                if top1_slice.has_failure_turn:
+                    failure_turn_hits_at_1 += 1
+    failure_turn_recall_at_1 = round(failure_turn_hits_at_1 / max(1, n), 4)
+
 
     return EvalReportResponse(
         benchmark_name="Agent Session Memory Scar Corpus (n=6 paired failure-recovery queries)",
@@ -418,8 +512,8 @@ def run_benchmark_evaluation(
         mean_token_reduction_vs_grep=round(sum(token_ratios) / max(1, len(token_ratios)), 2),
         candidate_mask_integrity_ok=sem_r1 > 0.0 and buggy_mask_hits == 0,
         diagonal_mask_bug_simulated_recall=round(buggy_mask_hits / max(1, n), 4),
-        failure_turn_recall_at_1=0.0,
-        majority_class_baseline_recall=0.0,
-        paired_mcnemar_pvalue=1.0,
+        failure_turn_recall_at_1=failure_turn_recall_at_1,
+        majority_class_baseline_recall=majority_class_baseline_recall,
+        paired_mcnemar_pvalue=paired_mcnemar_pvalue,
         cases=cases,
     )
