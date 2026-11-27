@@ -4,7 +4,7 @@ Each round completes one feature or repair. Future items are planned, not implem
 
 ## Current round
 
-preregistered-retrieval-eval-gates
+ingest-admission-governor-simulator
 
 ## Roadmap
 
@@ -37,12 +37,16 @@ Tests: `backend/tests/test_engine_and_api.py`
 
 ### ingest-admission-governor-simulator — Per-Shard Memory Admission Governor & Decorrelated Backoff Simulator
 
-Status: planned
+Status: in_progress
 
 Acceptance:
 - Simulate multi-index bulk ingest against parent RSS vs per-shard admission watermarks
 - Compute target concurrency pushback headers and decorrelated jitter ramp schedules to prevent synchronized 32->1->32 concurrency collapses
 - Check memory headroom before background drain-free thread spawns and fall back to inline drop under pressure
+
+Implementation: `backend/app/services/admission_governor.py`
+
+Tests: `backend/tests/test_admission_governor.py`
 
 ### decision-flywheel-writeback-audit — Decision Flywheel Cache Write-Back & Latency Probe Diagnostics
 
