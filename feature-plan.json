@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "current_feature": "preregistered-retrieval-eval-gates",
+  "current_feature": "ingest-admission-governor-simulator",
   "features": [
     {
       "id": "session-memory-topic-slicing-search",
@@ -51,14 +51,18 @@
     {
       "id": "ingest-admission-governor-simulator",
       "title": "Per-Shard Memory Admission Governor & Decorrelated Backoff Simulator",
-      "status": "planned",
+      "status": "in_progress",
       "acceptance": [
         "Simulate multi-index bulk ingest against parent RSS vs per-shard admission watermarks",
         "Compute target concurrency pushback headers and decorrelated jitter ramp schedules to prevent synchronized 32->1->32 concurrency collapses",
         "Check memory headroom before background drain-free thread spawns and fall back to inline drop under pressure"
       ],
-      "implementation": [],
-      "tests": []
+      "implementation": [
+        "backend/app/services/admission_governor.py"
+      ],
+      "tests": [
+        "backend/tests/test_admission_governor.py"
+      ]
     },
     {
       "id": "decision-flywheel-writeback-audit",
